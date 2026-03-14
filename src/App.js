@@ -315,7 +315,7 @@ export default function App() {
         </div>
       )}
 
-      <<div style={{ textAlign: "center", padding: "24px 0 8px", fontSize: 12, color: "#604030", letterSpacing: "0.08em", position: "relative", zIndex: 1 }}>
+      <div style={{ textAlign: "center", padding: "24px 0 8px", fontSize: 12, color: "#604030", letterSpacing: "0.08em", position: "relative", zIndex: 1 }}>
         Built by Rajiv Govindan
       </div>
 
@@ -327,11 +327,8 @@ export default function App() {
         body { background: #100800; }
         button:disabled { opacity: 0.35; cursor: not-allowed; }
       `}</style>
-          <div style={{ textAlign: "center", padding: "24px 0 8px", fontSize: 12, color: "#604030", letterSpacing: "0.08em", position: "relative", zIndex: 1 }}>
-        Built by Rajiv Govindan
-      </div>
     </div>
-     );
+  );
 }
 
 const S = {
