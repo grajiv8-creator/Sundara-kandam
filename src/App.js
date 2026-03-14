@@ -315,6 +315,10 @@ export default function App() {
         </div>
       )}
 
+      <<div style={{ textAlign: "center", padding: "24px 0 8px", fontSize: 12, color: "#604030", letterSpacing: "0.08em", position: "relative", zIndex: 1 }}>
+        Built by Rajiv Govindan
+      </div>
+
       <style>{`
         @import url('https://fonts.googleapis.com/css2?family=Noto+Serif+Tamil:wght@400;600;700&family=Crimson+Pro:ital,wght@0,400;0,600;1,400&display=swap');
         @keyframes spin { to { transform: rotate(360deg); } }
