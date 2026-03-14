@@ -10,6 +10,7 @@ const PADALAMS = [
 
 const TOTAL_VERSES = PADALAMS.reduce((s, p) => s + p.totalVerses, 0);
 const FAMILY_COLORS = ["#c2440c", "#7c5c1e", "#1a6b4a", "#2a4f8c", "#7b3080"];
+const GEMINI_KEY = "AIzaSyCR2E05RoEDPwFhb4rowxcKBX3ZyFC42xU";
 
 function loadStorage(key, fallback) {
   try { const v = localStorage.getItem(key); return v ? JSON.parse(v) : fallback; }
@@ -20,7 +21,6 @@ function saveStorage(key, val) {
 }
 
 async function fetchPasuram(padalamId, verseNum, padalamName, padalamNameEn, signal) {
-  const apiKey = AIzaSyCR2E05RoEDPwFhb4rowxcKBX3ZyFC42xU;
   const prompt = `You are a scholar of Tamil classical literature, specifically Kamba Ramayanam.
 
 Return ONLY a valid JSON object (no markdown, no explanation, no code fences) with this exact structure:
@@ -35,7 +35,7 @@ Generate verse number ${verseNum} from Padalam ${padalamId} ("${padalamName}" / 
 The Tamil text should be authentic Kamba Ramayanam style (classical Tamil, akaval/viruttam metre). The meaning should be clear and beautiful in English. Keep context to one sentence.`;
 
   const response = await fetch(
-    `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent?key=${apiKey}`,
+    `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent?key=${GEMINI_KEY}`,
     {
       method: "POST",
       signal,
