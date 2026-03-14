@@ -65,7 +65,7 @@ function verseFromGlobal(globalIdx) {
 function Flame() {
   return (
     <svg width="28" height="36" viewBox="0 0 28 36" fill="none" style={{ display: "inline-block" }}>
-      <ellipse cx="14" cy="32" rx="7" ry="4" fill="#f97316" opacity="0.3" />
+      <ellipse cx="  14" cy="32" rx="7" ry="4" fill="#f97316" opacity="0.3" />
       <path d="M14 2 C14 2 22 10 20 18 C18 24 22 26 20 30 C18 34 10 34 8 30 C6 26 10 24 8 18 C6 10 14 2 14 2Z" fill="url(#flameGrad)" />
       <path d="M14 12 C14 12 18 17 17 21 C16 25 18 27 17 29 C16 31 12 31 11 29 C10 27 12 25 11 21 C10 17 14 12 14 12Z" fill="#fef3c7" opacity="0.7" />
       <defs>
