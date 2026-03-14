@@ -20,7 +20,7 @@ function saveStorage(key, val) {
 }
 
 async function fetchPasuram(padalamId, verseNum, padalamName, padalamNameEn, signal) {
-  const apiKey = process.env.REACT_APP_GEMINI_API_KEY;
+  const apiKey = AIzaSyCR2E05RoEDPwFhb4rowxcKBX3ZyFC42xU;
   const prompt = `You are a scholar of Tamil classical literature, specifically Kamba Ramayanam.
 
 Return ONLY a valid JSON object (no markdown, no explanation, no code fences) with this exact structure:
