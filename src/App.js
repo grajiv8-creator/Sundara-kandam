@@ -35,7 +35,8 @@ Generate verse number ${verseNum} from Padalam ${padalamId} ("${padalamName}" / 
 The Tamil text should be authentic Kamba Ramayanam style (classical Tamil, akaval/viruttam metre). The meaning should be clear and beautiful in English. Keep context to one sentence.`;
 
   const response = await fetch(
-    `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent?key=${GEMINI_KEY}`,
+    `https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent
+?key=${GEMINI_KEY}`,
     {
       method: "POST",
       signal,
