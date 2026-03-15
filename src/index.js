@@ -17,6 +17,7 @@
     html { scroll-behavior: smooth; }
     body { background: var(--deep); color: var(--text); font-family: 'Crimson Pro', Georgia, serif; line-height: 1.7; overflow-x: hidden; }
     body::before { content: ''; position: fixed; inset: 0; background-image: url("data:image/svg+xml,%3Csvg viewBox='0 0 200 200' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.85' numOctaves='4' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)' opacity='0.04'/%3E%3C/svg%3E"); pointer-events: none; z-index: 0; opacity: 0.5; }
+    #landing { display: block; }
     .hero { min-height: 100vh; display: flex; flex-direction: column; align-items: center; justify-content: center; text-align: center; padding: 60px 24px; position: relative; overflow: hidden; }
     .hero::after { content: ''; position: absolute; inset: 0; background: radial-gradient(ellipse at 50% 30%, #c2440c18 0%, transparent 65%); pointer-events: none; }
     .mandala { position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%); width: min(600px, 90vw); height: min(600px, 90vw); opacity: 0.04; animation: slowspin 60s linear infinite; }
@@ -57,15 +58,12 @@
     .final-sub { font-size: 17px; color: var(--muted); margin-bottom: 36px; font-style: italic; }
     .credit { margin-top: 48px; font-size: 12px; letter-spacing: 0.15em; color: var(--dim); }
     @keyframes fadeUp { from { opacity: 0; transform: translateY(20px); } to { opacity: 1; transform: translateY(0); } }
-    #app-container { display: none; }
     @media (max-width: 480px) { .quote-block { padding: 20px; } .benefits { grid-template-columns: 1fr; } }
   </style>
 </head>
 <body>
 
-  <!-- LANDING PAGE -->
   <div id="landing">
-
     <div class="hero">
       <svg class="mandala" viewBox="0 0 400 400" fill="none" xmlns="http://www.w3.org/2000/svg">
         <circle cx="200" cy="200" r="190" stroke="#f5c87a" stroke-width="0.5"/>
@@ -167,14 +165,18 @@
       <a href="#" class="cta-btn" id="enterBtn2">Start Reading Today →</a>
       <div class="credit">Built by Rajiv Govindan · Inspired by Sri U.Ve. Velukkudi Krishnan Swami's teachings</div>
     </div>
+  </div>
 
-  </div><!-- end #landing -->
-
-  <!-- REACT APP MOUNTS HERE -->
-  <div id="root" style="display:none;"></div>
+  <div id="root"></div>
 
   <script>
-    // Scroll animations
+    document.querySelectorAll('#enterBtn, #enterBtn2').forEach(btn => {
+      btn.addEventListener('click', function(e) {
+        e.preventDefault();
+        document.getElementById('landing').style.display = 'none';
+        window.scrollTo(0, 0);
+      });
+    });
     const observer = new IntersectionObserver((entries) => {
       entries.forEach(e => {
         if (e.isIntersecting) { e.target.style.opacity = '1'; e.target.style.transform = 'translateY(0)'; }
@@ -185,17 +187,6 @@
       el.style.transition = 'opacity 0.7s ease, transform 0.7s ease';
       observer.observe(el);
     });
-
-    // Begin Reading buttons — hide landing, show React app
-    document.querySelectorAll('#enterBtn, #enterBtn2').forEach(btn => {
-      btn.addEventListener('click', function(e) {
-        e.preventDefault();
-        document.getElementById('landing').style.display = 'none';
-        document.getElementById('root').style.display = 'block';
-        window.scrollTo(0, 0);
-      });
-    });
   </script>
-
 </body>
 </html>
