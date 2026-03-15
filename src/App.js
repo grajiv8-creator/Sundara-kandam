@@ -232,6 +232,11 @@ export default function App() {
 
   useOmChant(omPlaying);
 
+  useEffect(() => {
+    if (activeMember) setOmPlaying(true);
+    else setOmPlaying(false);
+  }, [activeMember]);
+
   useEffect(() => saveStorage("sk_members", members), [members]);
   useEffect(() => saveStorage("sk_activeMember", activeMember), [activeMember]);
   useEffect(() => saveStorage("sk_progress", progress), [progress]);
@@ -253,7 +258,6 @@ export default function App() {
     const key = `${curPadalam}-${curVerse}`;
     const alreadyRead = memberProgress[key];
     if (!alreadyRead) {
-      playBell();
       const newProgress = { ...(progress[activeMember] || {}), [key]: true };
       setProgress(prev => ({ ...prev, [activeMember]: newProgress }));
       setReadDates(prev => ({ ...prev, [activeMember]: [...(prev[activeMember] || []), getTodayStr()] }));
@@ -378,7 +382,7 @@ export default function App() {
         </div>
         <div style={{ display: "flex", gap: 8, alignItems: "center" }}>
           {/* Om toggle */}
-          <button onClick={() => setOmPlaying(p => !p)} style={{ ...S.omBtn, background: omPlaying ? "#c2440c22" : "transparent", borderColor: omPlaying ? "#c2440c" : "#3a2010", color: omPlaying ? "#f5c87a" : "#806040" }} title="Toggle Om chanting">
+          <button onClick={() => setOmPlaying(p => !p)} style={{ ...S.omBtn, background: omPlaying ? "#c2440c22" : "transparent", borderColor: omPlaying ? "#c2440c" : "#3a2010", color: omPlaying ? "#f5c87a" : "#806040" }} title={omPlaying ? "Mute Om chanting" : "Resume Om chanting"}>
             ॐ
           </button>
           {/* Streak badge */}
