@@ -1,4 +1,96 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef, useCallback } from "react";
+
+// ── Audio helpers ────────────────────────────────────────────────────────────
+function playBell() {
+  try {
+    const ctx = new (window.AudioContext || window.webkitAudioContext)();
+    const o = ctx.createOscillator();
+    const g = ctx.createGain();
+    o.connect(g); g.connect(ctx.destination);
+    o.frequency.setValueAtTime(880, ctx.currentTime);
+    o.frequency.exponentialRampToValueAtTime(440, ctx.currentTime + 1.5);
+    g.gain.setValueAtTime(0.4, ctx.currentTime);
+    g.gain.exponentialRampToValueAtTime(0.001, ctx.currentTime + 2);
+    o.start(); o.stop(ctx.currentTime + 2);
+    // Second harmonic for richness
+    const o2 = ctx.createOscillator();
+    const g2 = ctx.createGain();
+    o2.connect(g2); g2.connect(ctx.destination);
+    o2.frequency.setValueAtTime(1320, ctx.currentTime);
+    o2.frequency.exponentialRampToValueAtTime(660, ctx.currentTime + 1.2);
+    g2.gain.setValueAtTime(0.2, ctx.currentTime);
+    g2.gain.exponentialRampToValueAtTime(0.001, ctx.currentTime + 1.5);
+    o2.start(); o2.stop(ctx.currentTime + 1.5);
+  } catch(e) {}
+}
+
+function useOmChant(playing) {
+  const ctxRef = useRef(null);
+  const nodesRef = useRef([]);
+  useEffect(() => {
+    if (playing) {
+      try {
+        const ctx = new (window.AudioContext || window.webkitAudioContext)();
+        ctxRef.current = ctx;
+        const freqs = [136.1, 272.2, 408.3];
+        freqs.forEach((freq, i) => {
+          const o = ctx.createOscillator();
+          const g = ctx.createGain();
+          o.type = "sine";
+          o.frequency.value = freq;
+          g.gain.value = i === 0 ? 0.12 : 0.05;
+          o.connect(g); g.connect(ctx.destination);
+          o.start();
+          nodesRef.current.push(o, g);
+        });
+      } catch(e) {}
+    } else {
+      nodesRef.current.forEach(n => { try { n.stop ? n.stop() : n.disconnect(); } catch(e) {} });
+      nodesRef.current = [];
+      if (ctxRef.current) { try { ctxRef.current.close(); } catch(e) {} ctxRef.current = null; }
+    }
+    return () => {
+      nodesRef.current.forEach(n => { try { n.stop ? n.stop() : n.disconnect(); } catch(e) {} });
+      nodesRef.current = [];
+      if (ctxRef.current) { try { ctxRef.current.close(); } catch(e) {} ctxRef.current = null; }
+    };
+  }, [playing]);
+}
+
+// ── Streak helper ────────────────────────────────────────────────────────────
+function getTodayStr() { return new Date().toISOString().split("T")[0]; }
+function getStreak(readDates) {
+  if (!readDates || readDates.length === 0) return 0;
+  const sorted = [...new Set(readDates)].sort().reverse();
+  let streak = 0; let check = new Date();
+  for (const d of sorted) {
+    const checkStr = check.toISOString().split("T")[0];
+    if (d === checkStr) { streak++; check.setDate(check.getDate() - 1); }
+    else if (d < checkStr) break;
+  }
+  return streak;
+}
+
+// ── Daily verse helper ───────────────────────────────────────────────────────
+function getDailyVerseIndex() {
+  const start = new Date("2025-01-01");
+  const today = new Date();
+  const diff = Math.floor((today - start) / (1000 * 60 * 60 * 24));
+  return diff % 62; // 62 total verses
+}
+
+function verseFromGlobalIdx(globalIdx) {
+  const PADS = [
+    { id: 1, totalVerses: 13 }, { id: 2, totalVerses: 11 },
+    { id: 3, totalVerses: 13 }, { id: 4, totalVerses: 13 }, { id: 5, totalVerses: 12 },
+  ];
+  let idx = 0;
+  for (const p of PADS) {
+    if (globalIdx < idx + p.totalVerses) return { padalamId: p.id, verseNum: globalIdx - idx + 1 };
+    idx += p.totalVerses;
+  }
+  return { padalamId: 5, verseNum: 12 };
+}
 
 const PADALAMS = [
   { id: 1, name: "கடல் தாவு படலம்", nameEn: "Crossing the Ocean", totalVerses: 13 },
@@ -103,20 +195,25 @@ function verseFromGlobal(globalIdx) {
   return { padalamId: 5, verseNum: PADALAMS[4].totalVerses };
 }
 
-function Flame() {
+function FlickDiya({ size = 28 }) {
   return (
-    <svg width="24" height="32" viewBox="0 0 28 36" fill="none" style={{ display: "inline-block" }}>
-      <ellipse cx="14" cy="32" rx="7" ry="4" fill="#f97316" opacity="0.3" />
-      <path d="M14 2 C14 2 22 10 20 18 C18 24 22 26 20 30 C18 34 10 34 8 30 C6 26 10 24 8 18 C6 10 14 2 14 2Z" fill="url(#fg)" />
-      <path d="M14 12 C14 12 18 17 17 21 C16 25 18 27 17 29 C16 31 12 31 11 29 C10 27 12 25 11 21 C10 17 14 12 14 12Z" fill="#fef3c7" opacity="0.7" />
-      <defs><linearGradient id="fg" x1="14" y1="2" x2="14" y2="34" gradientUnits="userSpaceOnUse"><stop stopColor="#fbbf24"/><stop offset="0.5" stopColor="#f97316"/><stop offset="1" stopColor="#c2440c"/></linearGradient></defs>
+    <svg width={size} height={size * 1.3} viewBox="0 0 28 36" fill="none" style={{ display: "inline-block", animation: "flicker 2s ease-in-out infinite", transformOrigin: "center bottom" }}>
+      <ellipse cx="14" cy="32" rx="7" ry="4" fill="#f97316" opacity="0.3"/>
+      <path d="M14 2 C14 2 22 10 20 18 C18 24 22 26 20 30 C18 34 10 34 8 30 C6 26 10 24 8 18 C6 10 14 2 14 2Z" fill="url(#dg)"/>
+      <path d="M14 12 C14 12 18 17 17 21 C16 25 18 27 17 29 C16 31 12 31 11 29 C10 27 12 25 11 21 C10 17 14 12 14 12Z" fill="#fef3c7" opacity="0.7"/>
+      <defs><linearGradient id="dg" x1="14" y1="2" x2="14" y2="34" gradientUnits="userSpaceOnUse"><stop stopColor="#fbbf24"/><stop offset="0.5" stopColor="#f97316"/><stop offset="1" stopColor="#c2440c"/></linearGradient></defs>
     </svg>
   );
 }
 
-function OmSymbol() {
-  return <span style={{ fontSize: 22, color: "#c2440c", opacity: 0.7 }}>ॐ</span>;
-}
+const css = `
+  @import url('https://fonts.googleapis.com/css2?family=Noto+Serif+Tamil:wght@400;600;700&family=Crimson+Pro:ital,wght@0,400;0,600;1,400&display=swap');
+  @keyframes flicker { 0%,100%{transform:scaleX(1) scaleY(1)} 25%{transform:scaleX(0.85) scaleY(1.08)} 50%{transform:scaleX(1.1) scaleY(0.92)} 75%{transform:scaleX(0.9) scaleY(1.1)} }
+  @keyframes popIn { 0%{transform:scale(0.5);opacity:0} 70%{transform:scale(1.1)} 100%{transform:scale(1);opacity:1} }
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body { background: #100800; }
+  button:disabled { opacity: 0.35; cursor: not-allowed; }
+`;
 
 export default function App() {
   const [members, setMembers] = useState(() => loadStorage("sk_members", []));
@@ -124,24 +221,50 @@ export default function App() {
   const [showAddMember, setShowAddMember] = useState(false);
   const [newMemberName, setNewMemberName] = useState("");
   const [progress, setProgress] = useState(() => loadStorage("sk_progress", {}));
+  const [readDates, setReadDates] = useState(() => loadStorage("sk_readDates", {}));
   const [curPadalam, setCurPadalam] = useState(1);
   const [curVerse, setCurVerse] = useState(1);
   const [view, setView] = useState("read");
+  const [omPlaying, setOmPlaying] = useState(false);
+  const [showFireworks, setShowFireworks] = useState(false);
+  const [fireworksMsg, setFireworksMsg] = useState("");
+  const [showDailyBanner, setShowDailyBanner] = useState(true);
+
+  useOmChant(omPlaying);
 
   useEffect(() => saveStorage("sk_members", members), [members]);
   useEffect(() => saveStorage("sk_activeMember", activeMember), [activeMember]);
   useEffect(() => saveStorage("sk_progress", progress), [progress]);
+  useEffect(() => saveStorage("sk_readDates", readDates), [readDates]);
 
   const member = members.find(m => m.id === activeMember);
   const memberProgress = progress[activeMember] || {};
+  const memberDates = readDates[activeMember] || [];
   const isRead = memberProgress[`${curPadalam}-${curVerse}`];
   const totalRead = Object.keys(memberProgress).length;
   const pct = Math.round((totalRead / TOTAL_VERSES) * 100);
   const curP = PADALAMS.find(x => x.id === curPadalam);
   const verseData = PASURAMS[String(curPadalam)]?.[curVerse - 1];
+  const streak = getStreak(memberDates);
+  const dailyIdx = getDailyVerseIndex();
+  const dailyVerse = verseFromGlobalIdx(dailyIdx);
 
   function markRead() {
-    setProgress(prev => ({ ...prev, [activeMember]: { ...(prev[activeMember] || {}), [`${curPadalam}-${curVerse}`]: true } }));
+    const key = `${curPadalam}-${curVerse}`;
+    const alreadyRead = memberProgress[key];
+    if (!alreadyRead) {
+      playBell();
+      const newProgress = { ...(progress[activeMember] || {}), [key]: true };
+      setProgress(prev => ({ ...prev, [activeMember]: newProgress }));
+      setReadDates(prev => ({ ...prev, [activeMember]: [...(prev[activeMember] || []), getTodayStr()] }));
+      // Check padalam completion
+      const padalamKeys = Object.keys(newProgress).filter(k => k.startsWith(`${curPadalam}-`));
+      if (padalamKeys.length === curP.totalVerses) {
+        setFireworksMsg(`🎉 ${curP.nameEn} Complete!`);
+        setShowFireworks(true);
+        setTimeout(() => setShowFireworks(false), 4000);
+      }
+    }
   }
 
   function goNext() {
@@ -165,9 +288,15 @@ export default function App() {
 
   function jumpToNextUnread() {
     for (let g = 0; g < TOTAL_VERSES; g++) {
-      const { padalamId, verseNum } = verseFromGlobal(g);
+      const { padalamId, verseNum } = verseFromGlobalIdx(g);
       if (!memberProgress[`${padalamId}-${verseNum}`]) { setCurPadalam(padalamId); setCurVerse(verseNum); setView("read"); return; }
     }
+  }
+
+  function jumpToDaily() {
+    setCurPadalam(dailyVerse.padalamId);
+    setCurVerse(dailyVerse.verseNum);
+    setShowDailyBanner(false);
   }
 
   const S = styles;
@@ -178,20 +307,27 @@ export default function App() {
         <div style={S.bg} />
         <div style={S.loginWrap}>
           <div style={S.loginCard}>
-            <OmSymbol />
+            <FlickDiya />
             <div style={S.loginTitle}>சுந்தர காண்டம்</div>
             <div style={S.loginSub}>Sundara Kandam · Kamba Ramayanam</div>
             <div style={S.divider} />
             {members.length > 0 && <>
               <div style={S.loginWho}>Who is reading today?</div>
               <div style={S.memberGrid}>
-                {members.map(m => (
-                  <button key={m.id} onClick={() => setActiveMember(m.id)} style={{ ...S.memberBtn, borderColor: FAMILY_COLORS[m.colorIdx], color: FAMILY_COLORS[m.colorIdx] }}>
-                    <div style={{ ...S.dot, background: FAMILY_COLORS[m.colorIdx] }} />
-                    {m.name}
-                    <div style={S.memberRead}>{Object.keys(progress[m.id] || {}).length}/{TOTAL_VERSES} read</div>
-                  </button>
-                ))}
+                {members.map(m => {
+                  const mp = progress[m.id] || {};
+                  const md = readDates[m.id] || [];
+                  const ms = getStreak(md);
+                  return (
+                    <button key={m.id} onClick={() => setActiveMember(m.id)} style={{ ...S.memberBtn, borderColor: FAMILY_COLORS[m.colorIdx], color: FAMILY_COLORS[m.colorIdx] }}>
+                      <div style={{ ...S.dot, background: FAMILY_COLORS[m.colorIdx] }} />
+                      <div style={{ flex: 1, textAlign: "left" }}>
+                        <div>{m.name}</div>
+                        <div style={{ fontSize: 11, color: "#806040", marginTop: 2 }}>{Object.keys(mp).length}/{TOTAL_VERSES} read {ms > 0 ? `· 🔥 ${ms} day streak` : ""}</div>
+                      </div>
+                    </button>
+                  );
+                })}
               </div>
               <div style={{ color: "#604030", fontSize: 13 }}>or</div>
             </>}
@@ -208,7 +344,7 @@ export default function App() {
             <div style={{ fontSize: 11, color: "#604030", marginTop: 8 }}>Built by Rajiv Govindan</div>
           </div>
         </div>
-        <style>{`* { box-sizing: border-box; margin: 0; padding: 0; } body { background: #100800; }`}</style>
+        <style>{css}</style>
       </div>
     );
   }
@@ -216,19 +352,60 @@ export default function App() {
   return (
     <div style={S.root}>
       <div style={S.bg} />
+
+      {/* Fireworks overlay */}
+      {showFireworks && (
+        <div style={S.fireworksOverlay}>
+          <div style={S.fireworksBox}>
+            <div style={{ fontSize: 48, marginBottom: 8 }}>🎉</div>
+            <div style={{ fontFamily: "'Noto Serif Tamil', serif", fontSize: 22, color: "#f5c87a", marginBottom: 4 }}>படலம் முடிந்தது!</div>
+            <div style={{ fontSize: 18, color: "#d4b896" }}>{fireworksMsg}</div>
+            <div style={{ marginTop: 12, fontSize: 14, color: "#806040" }}>Jai Sriram! 🙏</div>
+          </div>
+          <div style={S.fireworksParticles}>
+            {Array.from({length: 20}, (_,i) => (
+              <div key={i} style={{ position: "absolute", width: 8, height: 8, borderRadius: "50%", background: ["#f5c87a","#c2440c","#4ade80","#60a5fa","#f472b6"][i%5], left: `${5 + (i * 4.7) % 90}%`, top: `${10 + (i * 7.3) % 70}%`, animation: `fw${i%3} 0.8s ease-out ${(i*0.1)}s both` }} />
+            ))}
+          </div>
+        </div>
+      )}
+
+      {/* Header */}
       <div style={S.header}>
         <div>
           <div style={S.appName}>சுந்தர காண்டம்</div>
           <div style={S.appNameEn}>Sundara Kandam</div>
         </div>
-        <button onClick={() => setActiveMember(null)} style={{ ...S.memberTag, borderColor: FAMILY_COLORS[member.colorIdx], color: FAMILY_COLORS[member.colorIdx] }}>
-          <div style={{ ...S.dot, background: FAMILY_COLORS[member.colorIdx], width: 8, height: 8 }} />
-          {member.name}
-        </button>
+        <div style={{ display: "flex", gap: 8, alignItems: "center" }}>
+          {/* Om toggle */}
+          <button onClick={() => setOmPlaying(p => !p)} style={{ ...S.omBtn, background: omPlaying ? "#c2440c22" : "transparent", borderColor: omPlaying ? "#c2440c" : "#3a2010", color: omPlaying ? "#f5c87a" : "#806040" }} title="Toggle Om chanting">
+            ॐ
+          </button>
+          {/* Streak badge */}
+          {streak > 0 && (
+            <div style={S.streakBadge}>🔥 {streak}</div>
+          )}
+          <button onClick={() => setActiveMember(null)} style={{ ...S.memberTag, borderColor: FAMILY_COLORS[member.colorIdx], color: FAMILY_COLORS[member.colorIdx] }}>
+            <div style={{ ...S.dot, background: FAMILY_COLORS[member.colorIdx], width: 8, height: 8 }} />
+            {member.name}
+          </button>
+        </div>
       </div>
 
       <div style={S.pbWrap}><div style={{ ...S.pb, width: `${pct}%`, background: FAMILY_COLORS[member.colorIdx] }} /></div>
       <div style={S.pbLabel}>{totalRead} of {TOTAL_VERSES} verses read · {pct}% complete</div>
+
+      {/* Daily verse banner */}
+      {showDailyBanner && view === "read" && (
+        <div style={S.dailyBanner}>
+          <div style={{ flex: 1 }}>
+            <div style={{ fontSize: 11, letterSpacing: "0.15em", color: "#f5c87a", marginBottom: 3 }}>TODAY'S VERSE</div>
+            <div style={{ fontSize: 14, color: "#d4b896" }}>Padalam {dailyVerse.padalamId}, Verse {dailyVerse.verseNum}</div>
+          </div>
+          <button onClick={jumpToDaily} style={S.dailyBtn}>Read Now →</button>
+          <button onClick={() => setShowDailyBanner(false)} style={{ background: "none", border: "none", color: "#806040", cursor: "pointer", fontSize: 18, padding: "0 4px" }}>×</button>
+        </div>
+      )}
 
       <div style={S.nav}>
         {[["read","📖 Read"],["progress","📊 Progress"],["family","👨‍👩‍👧 Family"]].map(([v,label]) => (
@@ -238,7 +415,7 @@ export default function App() {
 
       {view === "read" && (
         <div style={S.section}>
-          <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
+          <div style={{ display: "flex", gap: 8, flexWrap: "wrap", alignItems: "center" }}>
             {PADALAMS.map(p => (
               <button key={p.id} onClick={() => { setCurPadalam(p.id); setCurVerse(1); }} style={{ ...S.chip, background: curPadalam === p.id ? FAMILY_COLORS[member.colorIdx] : "#1a0a00", color: curPadalam === p.id ? "#fff8f0" : "#a07050", borderColor: curPadalam === p.id ? FAMILY_COLORS[member.colorIdx] : "#3a2010" }}>{p.id}</button>
             ))}
@@ -249,10 +426,10 @@ export default function App() {
           </div>
           <div style={S.card}>
             <div style={{ display: "flex", alignItems: "center", justifyContent: "center", gap: 10, marginBottom: 20 }}>
-              <Flame />
+              <FlickDiya size={24} />
               <span style={S.vNum}>பாடல் {curVerse}</span>
               <span style={S.vNumEn}>Verse {curVerse} of {curP.totalVerses}</span>
-              <Flame />
+              <FlickDiya size={24} />
             </div>
             {verseData && <>
               <div style={{ marginBottom: 18 }}>
@@ -270,7 +447,7 @@ export default function App() {
             </>}
           </div>
           <button onClick={markRead} style={{ ...S.markBtn, background: isRead ? "#1a3a1a" : FAMILY_COLORS[member.colorIdx], borderColor: isRead ? "#2a5a2a" : FAMILY_COLORS[member.colorIdx], color: isRead ? "#4ade80" : "#fff8f0" }}>
-            {isRead ? "✓ Marked as Read" : "Mark as Read"}
+            {isRead ? "✓ Marked as Read" : "🔔 Mark as Read"}
           </button>
           <div style={{ display: "flex", gap: 8 }}>
             <button onClick={goPrev} style={S.arrowBtn} disabled={curPadalam === 1 && curVerse === 1}>← Prev</button>
@@ -283,22 +460,29 @@ export default function App() {
 
       {view === "progress" && (
         <div style={S.section}>
-          <div style={S.sectionHeader}>My Reading Progress</div>
+          <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+            <div style={S.sectionHeader}>My Reading Progress</div>
+            {streak > 0 && <div style={{ fontSize: 15, color: "#f5c87a" }}>🔥 {streak} day streak!</div>}
+          </div>
           {PADALAMS.map(p => {
             const readInP = Object.keys(memberProgress).filter(k => k.startsWith(`${p.id}-`)).length;
             const pp = Math.round((readInP / p.totalVerses) * 100);
+            const done = readInP === p.totalVerses;
             return (
-              <div key={p.id} style={S.card}>
-                <div style={S.pTamil}>{p.name}</div>
+              <div key={p.id} style={{ ...S.card, borderColor: done ? "#2a5a2a" : "#3a2010" }}>
+                <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+                  <div style={S.pTamil}>{p.name}</div>
+                  {done && <div style={{ fontSize: 18 }}>✅</div>}
+                </div>
                 <div style={S.pEn}>{p.nameEn}</div>
                 <div style={{ height: 4, background: "#2a1508", borderRadius: 99, overflow: "hidden", margin: "12px 0 6px" }}>
-                  <div style={{ height: "100%", width: `${pp}%`, background: FAMILY_COLORS[member.colorIdx], borderRadius: 99 }} />
+                  <div style={{ height: "100%", width: `${pp}%`, background: done ? "#4ade80" : FAMILY_COLORS[member.colorIdx], borderRadius: 99 }} />
                 </div>
                 <div style={{ fontSize: 12, color: "#806040", marginBottom: 12 }}>{readInP} / {p.totalVerses} verses · {pp}%</div>
                 <div style={{ display: "flex", flexWrap: "wrap", gap: 5 }}>
                   {Array.from({ length: p.totalVerses }, (_, i) => {
                     const k = `${p.id}-${i + 1}`;
-                    return <div key={k} onClick={() => { setCurPadalam(p.id); setCurVerse(i + 1); setView("read"); }} style={{ width: 14, height: 14, borderRadius: 3, background: memberProgress[k] ? FAMILY_COLORS[member.colorIdx] : "#2a1a08", border: (curPadalam === p.id && curVerse === i + 1) ? `1.5px solid ${FAMILY_COLORS[member.colorIdx]}` : "1.5px solid #3a2010", cursor: "pointer" }} />;
+                    return <div key={k} onClick={() => { setCurPadalam(p.id); setCurVerse(i + 1); setView("read"); }} style={{ width: 14, height: 14, borderRadius: 3, background: memberProgress[k] ? (done ? "#4ade80" : FAMILY_COLORS[member.colorIdx]) : "#2a1a08", border: (curPadalam === p.id && curVerse === i + 1) ? `1.5px solid ${FAMILY_COLORS[member.colorIdx]}` : "1.5px solid #3a2010", cursor: "pointer" }} />;
                   })}
                 </div>
               </div>
@@ -312,14 +496,19 @@ export default function App() {
           <div style={S.sectionHeader}>Family Progress</div>
           {members.map(m => {
             const mp = progress[m.id] || {};
+            const md = readDates[m.id] || [];
             const n = Object.keys(mp).length;
             const fp = Math.round((n / TOTAL_VERSES) * 100);
+            const ms = getStreak(md);
             return (
               <div key={m.id} style={S.card}>
                 <div style={{ display: "flex", alignItems: "center", gap: 12 }}>
                   <div style={{ ...S.dot, width: 14, height: 14, background: FAMILY_COLORS[m.colorIdx] }} />
                   <div style={{ flex: 1 }}>
-                    <div style={{ fontSize: 18, color: "#f5e6d0", marginBottom: 8, fontWeight: 600 }}>{m.name}</div>
+                    <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 8 }}>
+                      <div style={{ fontSize: 18, color: "#f5e6d0", fontWeight: 600 }}>{m.name}</div>
+                      {ms > 0 && <div style={{ fontSize: 13, color: "#f5c87a" }}>🔥 {ms} days</div>}
+                    </div>
                     <div style={{ height: 4, background: "#2a1508", borderRadius: 99, overflow: "hidden", marginBottom: 6 }}>
                       <div style={{ height: "100%", width: `${fp}%`, background: FAMILY_COLORS[m.colorIdx], borderRadius: 99 }} />
                     </div>
@@ -343,13 +532,7 @@ export default function App() {
         </div>
       )}
 
-      <style>{`
-        @import url('https://fonts.googleapis.com/css2?family=Noto+Serif+Tamil:wght@400;600;700&family=Crimson+Pro:ital,wght@0,400;0,600;1,400&display=swap');
-        @keyframes spin { to { transform: rotate(360deg); } }
-        * { box-sizing: border-box; margin: 0; padding: 0; }
-        body { background: #100800; }
-        button:disabled { opacity: 0.35; cursor: not-allowed; }
-      `}</style>
+      <style>{css}</style>
     </div>
   );
 }
@@ -376,6 +559,13 @@ const styles = {
   appName: { fontSize: 26, fontFamily: "'Noto Serif Tamil', serif", color: "#f5c87a", letterSpacing: "0.05em" },
   appNameEn: { fontSize: 12, color: "#806040", letterSpacing: "0.12em", marginTop: 2 },
   memberTag: { display: "flex", alignItems: "center", gap: 6, background: "#120900", border: "1.5px solid", borderRadius: 20, padding: "6px 14px", fontSize: 14, fontFamily: "'Crimson Pro', serif", cursor: "pointer" },
+  omBtn: { width: 36, height: 36, borderRadius: "50%", border: "1.5px solid", cursor: "pointer", fontFamily: "serif", fontSize: 18, display: "flex", alignItems: "center", justifyContent: "center", transition: "all 0.3s" },
+  streakBadge: { background: "#1a0c00", border: "1px solid #3a2010", borderRadius: 20, padding: "4px 10px", fontSize: 13, color: "#f5c87a" },
+  dailyBanner: { display: "flex", alignItems: "center", gap: 10, background: "#1a0c00", border: "1px solid #c2440c44", borderRadius: 12, padding: "12px 16px", margin: "8px 16px 0", position: "relative", zIndex: 1 },
+  dailyBtn: { background: "#c2440c", border: "none", borderRadius: 8, color: "#fff8f0", padding: "8px 14px", cursor: "pointer", fontFamily: "'Crimson Pro', serif", fontSize: 13, fontWeight: 600, whiteSpace: "nowrap" },
+  fireworksOverlay: { position: "fixed", inset: 0, background: "#0f0800ee", zIndex: 100, display: "flex", alignItems: "center", justifyContent: "center" },
+  fireworksBox: { background: "#1a0c00", border: "2px solid #f5c87a", borderRadius: 20, padding: "36px 32px", textAlign: "center", animation: "popIn 0.5s cubic-bezier(.34,1.56,.64,1) both", position: "relative", zIndex: 101 },
+  fireworksParticles: { position: "absolute", inset: 0, pointerEvents: "none" },
   pbWrap: { height: 3, background: "#2a1508", margin: "0 20px", borderRadius: 99, overflow: "hidden", position: "relative", zIndex: 1 },
   pb: { height: "100%", borderRadius: 99, transition: "width 0.6s ease" },
   pbLabel: { fontSize: 12, color: "#806040", padding: "6px 20px 0", position: "relative", zIndex: 1 },
@@ -396,6 +586,6 @@ const styles = {
   meaningText: { fontSize: 17, lineHeight: 1.75, color: "#d4b896", fontStyle: "italic" },
   contextBox: { marginTop: 14, background: "#0f0700", borderRadius: 10, padding: "12px 14px" },
   contextText: { fontSize: 14, color: "#9a7050", lineHeight: 1.6 },
-  markBtn: { border: "1.5px solid", borderRadius: 12, padding: "14px", cursor: "pointer", fontFamily: "'Crimson Pro', serif", fontSize: 16, fontWeight: 600, textAlign: "center", width: "100%" },
+  markBtn: { border: "1.5px solid", borderRadius: 12, padding: "14px", cursor: "pointer", fontFamily: "'Crimson Pro', serif", fontSize: 16, fontWeight: 600, textAlign: "center", width: "100%", transition: "all 0.2s" },
   arrowBtn: { flex: 1, background: "transparent", border: "1.5px solid #3a2010", borderRadius: 10, color: "#a07050", padding: "11px 8px", cursor: "pointer", fontFamily: "'Crimson Pro', serif", fontSize: 14 },
 };
